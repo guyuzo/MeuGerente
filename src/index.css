@@ -102,6 +102,25 @@
   --accent-success: var(--color-green-400);
   --accent-warning: var(--color-gold-400);
   --accent-critical: var(--color-rose-500);
+
+  /* Tinta sobre acento claro. Fixa nos dois temas: os acentos (ciano, verde,
+     ouro, rosa) sao claros em ambos, entao a tinta que da contraste e sempre
+     escura (8.1:1 a 12:1). Nao usar `text-inverse` aqui — ele inverte por
+     tema e no light vira branco sobre acento claro (1.4:1, ilegivel). */
+  --text-on-accent: var(--color-neutral-900);
+
+  --bg-canvas-glow: rgba(124, 85, 238, 0.18);
+
+  /* Serie de dados — ver designsystem.md 3.6. Os 4 slots sao os mesmos hexes
+     nos dois temas: passam banda de luminancia, piso de croma, separacao CVD
+     (pior par ΔE 8.1) e contraste >= 3:1 contra as duas superficies. */
+  --chart-1: var(--color-purple-500);
+  --chart-2: var(--color-cyan-700);
+  --chart-3: var(--color-green-700);
+  --chart-4: var(--color-rose-500);
+
+  --chart-grid: var(--color-neutral-700);
+  --chart-surface: var(--color-neutral-800);
 }
 
 [data-theme='light'] {
@@ -109,23 +128,47 @@
 
   --bg-canvas: var(--color-neutral-50);
   --bg-surface: var(--color-neutral-0);
-  --bg-surface-raised: var(--color-neutral-0);
+  /* Precisa ser um degrau distinto de `bg-surface`, nao o mesmo neutral-0:
+     13 componentes (botao secundario, chips, celulas de kanban, tooltip)
+     usam esse token empilhado sobre um card branco e sumiam por completo no
+     light. O "+ elevation.1" previsto no designsystem nao resolvia, porque
+     quem consome o token pinta fundo, nao sombra. */
+  --bg-surface-raised: var(--color-neutral-100);
   --bg-surface-inverse: var(--color-neutral-900);
 
   --text-primary: var(--color-neutral-900);
   --text-secondary: var(--color-neutral-500);
-  --text-tertiary: var(--color-neutral-300);
+  /* neutral-300 dava 1.98:1 contra branco (invisivel); neutral-400 da 3.23:1
+     e continua lendo como terciario. */
+  --text-tertiary: var(--color-neutral-400);
   --text-inverse: var(--color-neutral-0);
 
   --border-default: var(--color-neutral-200);
   --border-subtle: var(--color-neutral-100);
 
-  --accent-secondary: var(--color-green-400);
+  /* Mantem o ciano do dark: o verde documentado colidia exatamente com
+     accent-success (mesmo green-400), deixando os badges "Postada" e
+     "Vendeu" indistinguiveis no light. */
+  --accent-secondary: var(--color-cyan-400);
+
+  --bg-canvas-glow: rgba(124, 85, 238, 0.10);
+
+  --chart-grid: var(--color-neutral-100);
+  --chart-surface: var(--color-neutral-0);
 }
 
 body {
   margin: 0;
-  background: var(--bg-canvas);
+  /* Brilho suave no topo do canvas — a "harmonia" da referencia vem desse
+     halo discreto atras do conteudo, nao de cor nos cards. */
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(
+    1100px 340px at 50% -140px,
+    var(--bg-canvas-glow),
+    transparent 70%
+  );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

@@ -2,6 +2,12 @@ import 'dotenv/config'
 import crypto from 'node:crypto'
 import express from 'express'
 import cors from 'cors'
+import {
+  analisarArquivo,
+  analisarPorUrl,
+  modelagemConfigurada,
+  LIMITE_VIDEO_BYTES,
+} from './modelagem.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -28,6 +34,7 @@ function gerarPkce() {
 }
 
 app.use(cors({ origin: FRONTEND_URL }))
+app.use(express.json({ limit: '1mb' }))
 
 app.get('/api/tiktok/status', (_req, res) => {
   res.json({ configurado: tiktokConfigurado, conectado: Boolean(tokenTikTok) })
@@ -119,7 +126,82 @@ app.post('/api/tiktok/desconectar', (_req, res) => {
   res.json({ ok: true })
 })
 
+// Modelagem de Video (prd.md 6.5) — a chave do Gemini fica so aqui no
+// servidor, nunca no navegador (requisito nao-funcional, prd.md secao 7).
+app.get('/api/modelagem/status', (_req, res) => {
+  res.json({ configurado: modelagemConfigurada() })
+})
+
+const ERRO_SEM_CHAVE =
+  'Gemini ainda não configurado neste servidor. Preencha GEMINI_API_KEY em ' +
+  'server/.env (a chave sai de aistudio.google.com/apikey).'
+
+app.post('/api/modelagem/analisar', async (req, res) => {
+  const { url, transcricaoManual } = req.body ?? {}
+
+  if (!url || !/^https?:\/\//i.test(url)) {
+    res.status(400).json({ erro: 'Informe a URL completa do vídeo no TikTok.' })
+    return
+  }
+  if (!modelagemConfigurada()) {
+    res.status(503).json({ erro: ERRO_SEM_CHAVE })
+    return
+  }
+
+  try {
+    res.json(await analisarPorUrl({ url, transcricaoManual }))
+  } catch (excecao) {
+    console.error('Erro na modelagem por link:', excecao.message)
+    res.status(502).json({ erro: excecao.message })
+  }
+})
+
+// Upload do arquivo de video — o caminho completo (audio + frames).
+// Recebe o binario cru em vez de multipart/base64: base64 dentro de JSON
+// infla o corpo em ~33% e exigiria uma dependencia de parser so para isso.
+// Metadados vao em headers, ja que o corpo inteiro e o video.
+app.post(
+  '/api/modelagem/analisar-arquivo',
+  express.raw({ type: ['video/*', 'application/octet-stream'], limit: LIMITE_VIDEO_BYTES }),
+  async (req, res) => {
+    if (!modelagemConfigurada()) {
+      res.status(503).json({ erro: ERRO_SEM_CHAVE })
+      return
+    }
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      res.status(400).json({ erro: 'Nenhum vídeo recebido.' })
+      return
+    }
+
+    const mimeType = req.get('content-type')?.split(';')[0] || 'video/mp4'
+    // Nome do arquivo pode ter acento/emoji, que nao passa em header cru.
+    const nomeArquivo = decodeURIComponent(req.get('x-nome-arquivo') || '') || 'video'
+    const transcricaoManual = decodeURIComponent(req.get('x-transcricao') || '')
+
+    try {
+      res.json(
+        await analisarArquivo({ bytes: req.body, mimeType, nomeArquivo, transcricaoManual }),
+      )
+    } catch (excecao) {
+      console.error('Erro na modelagem por arquivo:', excecao.message)
+      res.status(502).json({ erro: excecao.message })
+    }
+  },
+)
+
+// Corpo maior que o limite chega aqui como erro do express.raw.
+app.use((erro, _req, res, proximo) => {
+  if (erro?.type === 'entity.too.large') {
+    res.status(413).json({
+      erro: `Vídeo acima do limite de ${Math.round(LIMITE_VIDEO_BYTES / 1024 / 1024)} MB.`,
+    })
+    return
+  }
+  proximo(erro)
+})
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`)
   console.log(`TikTok: ${tiktokConfigurado ? 'configurado' : 'AGUARDANDO chaves em server/.env'}`)
+  console.log(`Gemini: ${modelagemConfigurada() ? 'configurado' : 'AGUARDANDO GEMINI_API_KEY em server/.env'}`)
 })

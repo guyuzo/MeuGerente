@@ -204,16 +204,52 @@ Tokens semânticos mapeiam os primitivos para **intenção de uso**. Todo compon
 |---|---|---|
 | `bg.canvas` | `color.neutral.50` | fundo geral |
 | `bg.surface` | `color.neutral.0` | cards, painéis |
-| `bg.surface-raised` | `color.neutral.0` + `elevation.1` | cards elevados |
+| `bg.surface-raised` | `color.neutral.100` | superfícies empilhadas sobre um card (botão secundário, chips, células de kanban) |
 | `text.primary` | `color.neutral.900` | texto principal |
 | `text.secondary` | `color.neutral.500` | metadados |
 | `text.tertiary` | `color.neutral.300` | desabilitado |
 | `border.default` | `color.neutral.200` | divisores |
 | `accent.primary` | `color.purple.500` | marca, CTA |
-| `accent.secondary` | `color.green.400` | seleção ativa (ex: data selecionada em calendário light) |
+| `accent.secondary` | `color.cyan.400` | seleção ativa (ex: data selecionada em calendário light) |
 | `accent.critical` | `color.rose.500` | ação destrutiva/prioridade alta (ex: pills "Personalizar") |
 
-> **Nota de padrão observado:** o acento de "seleção ativa" muda contextualmente entre ciano (dark mode, calendário "Agenda") e verde (light mode, chip "MAR 13"). Ambos são válidos; a escolha entre `accent.secondary` ciano ou verde deve ser consistente por tema, não misturada dentro do mesmo modo.
+> **Correção (revisão light mode):** `accent.secondary` no light era `color.green.400` — exatamente o mesmo primitivo de `accent.success`. Na prática os dois tokens renderizavam a mesma cor, deixando estados distintos (ex: badge "Postada" vs "Vendeu") indistinguíveis. O light passa a usar `color.cyan.400`, igual ao dark, mantendo a distinção semântica em ambos os temas.
+
+> `text.tertiary` no light subiu de `color.neutral.300` para `color.neutral.400`: o valor anterior media 1.98:1 contra `bg.surface` branco (texto praticamente invisível); o novo mede 3.23:1 e continua lendo como terciário.
+
+> `bg.surface-raised` no light era `color.neutral.0` — o mesmo primitivo de `bg.surface`. Como os componentes consomem o token pintando **fundo** (e não a sombra `elevation.1` que a especificação original supunha), todo elemento empilhado sobre um card branco ficava invisível: botão secundário, chips de data, células de kanban, tooltip de gráfico. Passa a ser `color.neutral.100`, um degrau efetivamente distinto do card.
+
+### 3.2.1 Tinta sobre acento
+
+| Token semântico | Referencia primitivo | Uso |
+|---|---|---|
+| `text.on-accent` | `color.neutral.900` (fixo nos dois temas) | texto sobre preenchimento de acento claro (ciano, verde, ouro, rosa) |
+
+Os acentos de status são **claros nos dois temas**, então a tinta que os contrasta é sempre escura. Usar `text.inverse` nesse papel é um erro: ele inverte por tema e, no light, vira branco sobre acento claro — 1.40:1 (ouro), 1.81:1 (ciano), 2.07:1 (verde). Com `text.on-accent` os mesmos pares medem 12.01:1, 9.31:1 e 8.13:1.
+
+`accent.primary` (roxo) é a exceção e mantém texto branco: 4.78:1 com branco contra 3.52:1 com tinta escura.
+
+### 3.6 Cor — Série de dados (gráficos)
+
+Slots categóricos para gráficos. Os quatro são os **mesmos hexes nos dois temas** — foram escolhidos por medição, não por gosto, e passam todos os checks automatizados em light (superfície `#ffffff`) e dark (superfície `#262626`), inclusive no modo *all-pairs* exigido por formas que comparam qualquer par entre si (donut/pizza, dispersão):
+
+| Token | Referencia primitivo | Hex |
+|---|---|---|
+| `chart.1` | `color.purple.500` | `#7c55ee` |
+| `chart.2` | `color.cyan.700` | `#0e93ac` |
+| `chart.3` | `color.green.700` | `#5c8a22` |
+| `chart.4` | `color.rose.500` | `#f43f5e` |
+
+Resultados medidos (OKLab ΔE ×100): separação sob daltonismo simulado (protan/deutan) — pior par **8.1** (alvo ≥ 8); visão normal — pior par **17.2** (piso ≥ 15); contraste contra superfície — **todos ≥ 3:1**; croma e banda de luminância dentro da faixa dos dois temas.
+
+**A ordem dos slots é o mecanismo de segurança, não decoração.** Trocar a ordem ou substituir um hex exige rodar o validador de paleta de novo — pares vizinhos verde↔rosa em tons mais escuros, por exemplo, caem para ΔE 4.6 e ficam indistinguíveis sob deuteranopia.
+
+| Token de apoio | Light | Dark | Uso |
+|---|---|---|---|
+| `chart.grid` | `color.neutral.100` | `color.neutral.700` | linhas de grade e eixo (fio de 1px, sempre sólido) |
+| `chart.surface` | `color.neutral.0` | `color.neutral.800` | cor dos "vãos" de 2px entre marcas e do anel dos pontos |
+
+Regras de marca que acompanham esses tokens: barra ≤ 24px com topo arredondado 4px e base reta; linha de 2px; ponto ≥ 8px com anel de 2px em `chart.surface`; preenchimento de área a ~10% de opacidade; grade recessiva e sólida. Texto de rótulo/legenda **nunca** veste a cor da série — usa os tokens de texto, com um marcador colorido ao lado carregando a identidade.
 
 ### 3.3 Tipografia semântica
 
