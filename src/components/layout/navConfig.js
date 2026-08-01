@@ -1,4 +1,4 @@
-import { LayoutDashboard, Fish, Tags, Clapperboard, Calendar, Package, ShoppingBag } from 'lucide-react'
+import { LayoutDashboard, Fish, Tags, Clapperboard, Calendar, Package, ShoppingBag, User } from 'lucide-react'
 
 // Fonte unica das rotas do app: NavTabs (mobile, tira horizontal) e Sidebar
 // (sm+, lista lateral agrupada) leem daqui, assim as duas nunca ficam
@@ -8,7 +8,10 @@ import { LayoutDashboard, Fish, Tags, Clapperboard, Calendar, Package, ShoppingB
 export const GRUPOS_NAV = [
   {
     label: null,
-    itens: [{ to: '/', Icon: LayoutDashboard, label: 'Dashboard', end: true }],
+    itens: [
+      { to: '/', Icon: LayoutDashboard, label: 'Dashboard', end: true },
+      { to: '/perfil', Icon: User, label: 'Perfil' },
+    ],
   },
   {
     label: 'Conteúdo',

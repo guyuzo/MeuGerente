@@ -11,7 +11,6 @@ import { formatarDataCurta, todayISO, adicionarDias } from '../calendario/utils'
 import { STATUS as STATUS_CALENDARIO } from '../calendario/constants'
 import { useAmostras } from '../amostras/useAmostras'
 import { STATUS as STATUS_AMOSTRA, STATUS_META as AMOSTRA_STATUS_META } from '../amostras/constants'
-import { IntegracaoTikTok } from './IntegracaoTikTok'
 import { GMV_MOCK, COMISSAO_MOCK, COMISSAO_MENSAL_MOCK, FRASES_MOTIVACIONAIS } from './constants'
 
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
@@ -102,9 +101,7 @@ export function DashboardPage() {
 
       {/* Graficos antes dos numeros: sao eles que dao a leitura de "como
           estou indo", e os cards de metrica sozinhos empurravam tudo para
-          baixo da dobra. A chamada de integracao com o TikTok fica logo
-          depois dos dados de exemplo, onde ela faz sentido como resposta
-          ("quer numeros reais? conecte aqui"). */}
+          baixo da dobra. A integracao com o TikTok mudou para a aba Perfil. */}
       <ChartCard
         titulo="Ritmo de publicação"
         subtitulo={`${totalVideosNaSerie} vídeos publicados nos últimos ${DIAS_NA_SERIE} dias`}
@@ -161,8 +158,6 @@ export function DashboardPage() {
           legenda={diasComPostagem === 1 ? '1 dia no total' : `${diasComPostagem} dias no total`}
         />
       </div>
-
-      <IntegracaoTikTok />
 
       <section className="flex flex-col gap-2">
         <h2 className="text-lg font-semibold">Últimos produtos postados</h2>

@@ -7,6 +7,7 @@ import { MarcasPage } from './components/features/marcas/MarcasPage'
 import { AmostrasPage } from './components/features/amostras/AmostrasPage'
 import { ProdutosPage } from './components/features/produtos/ProdutosPage'
 import { ModelagemVideoPage } from './components/features/modelagem/ModelagemVideoPage'
+import { PerfilPage } from './components/features/perfil/PerfilPage'
 import { LoginPage } from './components/features/auth/LoginPage'
 import { useAuth } from './components/features/auth/AuthProvider'
 
@@ -26,6 +27,7 @@ function App() {
         <Route path="/amostras" element={<AmostrasPage />} />
         <Route path="/produtos" element={<ProdutosPage />} />
         <Route path="/modelagem-video" element={<ModelagemVideoPage />} />
+        <Route path="/perfil" element={<PerfilPage />} />
       </Routes>
     </AppShell>
   )
