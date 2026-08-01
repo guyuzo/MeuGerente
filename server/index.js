@@ -20,6 +20,23 @@ const tiktokConfigurado = Boolean(TIKTOK_APP_KEY && TIKTOK_APP_SECRET && TIKTOK_
 // secao 4), sem multiusuario. Reiniciar o servidor derruba a conexao e
 // exige clicar em "Conectar com TikTok" de novo.
 let tokenTikTok = null
+let perfilTikTok = null
+
+// Usa o escopo user.info.basic (o unico solicitado) so para confirmar a
+// conexao e mostrar nome/foto no painel — nenhum outro dado de perfil e
+// pedido ou guardado.
+async function buscarPerfilTikTok(accessToken) {
+  const url = new URL('https://open.tiktokapis.com/v2/user/info/')
+  url.searchParams.set('fields', 'display_name,avatar_url')
+  const resposta = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  const dados = await resposta.json()
+  if (!resposta.ok || dados.error?.code !== 'ok') {
+    throw new Error(dados.error?.message || 'Falha ao buscar perfil do TikTok')
+  }
+  return dados.data.user
+}
 
 // A API v2 do TikTok exige PKCE (code_challenge) mesmo com client_secret —
 // sem isso a tela de autorizacao recusa com "code_challenge" no erro.
@@ -37,7 +54,11 @@ app.use(cors({ origin: FRONTEND_URL }))
 app.use(express.json({ limit: '1mb' }))
 
 app.get('/api/tiktok/status', (_req, res) => {
-  res.json({ configurado: tiktokConfigurado, conectado: Boolean(tokenTikTok) })
+  res.json({
+    configurado: tiktokConfigurado,
+    conectado: Boolean(tokenTikTok),
+    perfil: perfilTikTok,
+  })
 })
 
 // Passo 1 do OAuth: manda o usuario pra tela de autorizacao do TikTok.
@@ -99,6 +120,10 @@ app.get('/auth/tiktok/callback', async (req, res) => {
     if (!resposta.ok) throw new Error(dados.error_description || 'Falha ao trocar o code por token')
 
     tokenTikTok = dados
+    perfilTikTok = await buscarPerfilTikTok(dados.access_token).catch((excecao) => {
+      console.error('Erro ao buscar perfil TikTok:', excecao.message)
+      return null
+    })
     res.redirect(`${FRONTEND_URL}/?tiktok=conectado`)
   } catch (excecao) {
     console.error('Erro na troca de token TikTok:', excecao.message)
@@ -123,6 +148,7 @@ app.get('/api/tiktok/loja', (_req, res) => {
 
 app.post('/api/tiktok/desconectar', (_req, res) => {
   tokenTikTok = null
+  perfilTikTok = null
   res.json({ ok: true })
 })
 
