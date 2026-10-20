@@ -10,7 +10,8 @@ export const vendasRouter = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
+  // A Vercel corta requisição acima de 4,5 MB antes de chegar aqui; 4 MB cobre ~15 mil pedidos.
+  limits: { fileSize: 4 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (/\.xlsx$/i.test(file.originalname)) return cb(null, true);
     cb(new Error("Envie um arquivo .xlsx"));

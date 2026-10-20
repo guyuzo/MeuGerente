@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+// Em produção (Vercel) a API mora no mesmo domínio, em /api — por isso o padrão é caminho relativo.
+const BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 export class ApiError extends Error {
   status: number;
