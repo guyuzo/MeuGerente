@@ -1,0 +1,14 @@
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'rose';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'orange';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'amber';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'yellow';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'lime';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'green';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'teal';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'cyan';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'blue';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'indigo';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'purple';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'fuchsia';--> statement-breakpoint
+ALTER TYPE "public"."categoria_cor" ADD VALUE 'pink';--> statement-breakpoint
+ALTER TABLE "categorias" ADD COLUMN "emoji" text;

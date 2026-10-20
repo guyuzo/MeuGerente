@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/*
+ * Tokens extraídos de design-system.md (seções 2 a 5). Não adicionar cor, espaçamento
+ * ou radius fora desta lista — a escala de espaçamento (4/8/12/16/24/32/48/64) já é
+ * coberta pelos utilitários padrão do Tailwind (p-1..p-16), por isso não é redefinida aqui.
+ */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Escala neutra (identidade v1.0 define 50/150/300/400/600/900; os degraus intermediários seguem os anteriores) */
+  --color-neutral-50: #ffffff;
+  --color-neutral-75: #fafafa;
+  --color-neutral-100: #f3f3f3;
+  --color-neutral-150: #f1f0f4;
+  --color-neutral-200: #ececed;
+  --color-neutral-300: #e2e3e4;
+  --color-neutral-400: #d0d1d4;
+  --color-neutral-500: #9ba0a5;
+  --color-neutral-600: #6b7076;
+  --color-neutral-700: #575c61;
+  --color-neutral-800: #34393d;
+  --color-neutral-900: #16151a;
+  --color-neutral-950: #101010;
+
+  /* Cor da marca (lilás) — #B18BFF nunca como texto sobre fundo claro; texto lilás é purple-600+ */
+  --color-purple-50: #f7f3ff;
+  --color-purple-100: #eee6ff;
+  --color-purple-200: #ddccff;
+  --color-purple-300: #c9adff;
+  --color-purple-400: #b18bff;
+  --color-purple-500: #9466f5;
+  --color-purple-600: #7a48e0;
+  --color-purple-700: #6236bd;
+  --color-purple-800: #4b2a91;
+  --color-purple-900: #2f1b5c;
+
+  /* Avisos */
+  --color-success: #497d00;
+  --color-success-bg: #eef6e3;
+  --color-success-light: #a8e063;
+  --color-warning: #9a5b00;
+  --color-warning-bg: #fdf3e3;
+  --color-error: #c62828;
+  --color-error-bg: #fdecec;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Tipografia (tamanho / line-height / letter-spacing / peso) */
+  --text-display: 32px;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+
+  --text-h1: 24px;
+  --text-h1--line-height: 1.333;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h1--font-weight: 700;
+
+  --text-h2: 18px;
+  --text-h2--line-height: 1.3;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h2--font-weight: 700;
+
+  --text-h3: 15px;
+  --text-h3--line-height: 1.4;
+  --text-h3--font-weight: 500;
+
+  --text-body: 14px;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+
+  --text-body-strong: 14px;
+  --text-body-strong--line-height: 1.5;
+  --text-body-strong--font-weight: 500;
+
+  --text-caption: 12px;
+  --text-caption--line-height: 1.35;
+  --text-caption--letter-spacing: 0.01em;
+  --text-caption--font-weight: 400;
+
+  --text-micro: 11px;
+  --text-micro--line-height: 1.3;
+  --text-micro--letter-spacing: 0.02em;
+  --text-micro--font-weight: 400;
+}
+
+/*
+ * Modo escuro (toggle manual, ThemeToggle liga/desliga via `data-theme` em <html>). Reaproveita
+ * a mesma escala neutra em posição invertida — todo utilitário `neutral-*` já existente no app
+ * (texto, fundo, hover, borda) passa a resolver pro valor escuro sem precisar de classe `dark:`
+ * espalhada por cada componente.
+ */
+:root[data-theme="dark"] {
+  --color-neutral-50: #0d0e0f;
+  --color-neutral-75: #131415;
+  --color-neutral-100: #17181a;
+  --color-neutral-150: #1c1e20;
+  --color-neutral-200: #212325;
+  --color-neutral-300: #26282b;
+  --color-neutral-400: #34373a;
+  --color-neutral-500: #6b7076;
+  --color-neutral-600: #9ba0a5;
+  --color-neutral-700: #c9cbcd;
+  --color-neutral-800: #e2e3e4;
+  --color-neutral-900: #f3f3f3;
+  --color-neutral-950: #ffffff;
+
+  /* Marca e avisos no escuro: fundos escurecidos, textos clareados pra manter contraste. */
+  --color-purple-50: #221a38;
+  --color-purple-100: #2c2249;
+  --color-purple-200: #3d2f66;
+  --color-success: #a8e063;
+  --color-success-bg: #1d2a10;
+  --color-warning: #f0b44c;
+  --color-warning-bg: #2e2210;
+  --color-error: #ff8a80;
+  --color-error-bg: #331717;
+}
+
+@layer base {
+  html {
+    font-feature-settings: "cv05", "ss01";
+  }
+
+  body {
+    @apply bg-neutral-300 text-neutral-900 font-sans text-body antialiased transition-colors duration-150;
+  }
+
+  /* Títulos em Plus Jakarta Sans 700; números de métrica usam tabular-nums. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+
+  /* Foco sempre visível, anel lilás afastado 2px. */
+  :focus-visible {
+    outline: 2px solid var(--color-purple-300);
+    outline-offset: 2px;
+  }
+}
+
+/* Scroll fino usado em modais e dropdowns — evita a barra grossa padrão do sistema operacional. */
+.scroll-fino {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-400) transparent;
+}
+.scroll-fino::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-fino::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-fino::-webkit-scrollbar-thumb {
+  background-color: var(--color-neutral-400);
+  border-radius: 8px;
+}
+.scroll-fino::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-neutral-500);
+}
+
+/* Logo: uma imagem por tema (o wordmark negativo some no fundo claro). */
+.logo-escuro {
+  display: none;
+}
+:root[data-theme="dark"] .logo-escuro {
+  display: block;
+}
+:root[data-theme="dark"] .logo-claro {
+  display: none;
+}
