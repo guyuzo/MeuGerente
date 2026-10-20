@@ -17,6 +17,13 @@ export function useAnalisarVendas() {
   });
 }
 
+/** Não invalida nada: a análise avulsa não grava venda nem produto. */
+export function useAnaliseAvulsaVendas() {
+  return useMutation({
+    mutationFn: (arquivo: File) => vendaRepository.analisarSemSalvar(arquivo),
+  });
+}
+
 export function useImportarVendas() {
   const queryClient = useQueryClient();
   return useMutation({

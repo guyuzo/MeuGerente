@@ -66,6 +66,13 @@ export interface ResumoVendas {
   porStatus: Partial<Record<VendaStatusPedido, number>>;
 }
 
+/** Análise de uma planilha sem gravar nada — nem venda, nem produto. Período = datas do primeiro e do último pedido. */
+export interface AnaliseAvulsaVendas extends ResumoVendas {
+  linhasIgnoradas: number;
+  inicio?: string;
+  fim?: string;
+}
+
 /** Produto que a planilha traz e ainda não bate com nenhum já cadastrado — usuário revisa antes de criar. */
 export interface ProdutoSugeridoImportacao {
   nomeImportado: string;

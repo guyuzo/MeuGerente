@@ -2,6 +2,7 @@ import type { Produto } from "@meugerente/shared";
 import { Package, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "../../components/layout/PageHeader";
+import { CardMetrica } from "../../components/shared";
 import { Button } from "../../components/ui/Button";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { ErrorState } from "../../components/ui/ErrorState";
@@ -49,6 +50,9 @@ export function ProdutosPage() {
     });
   }, [produtosQuery.data, filtros, produtosComAmostra]);
 
+  const totalArquivados = (produtosQuery.data ?? []).filter((produto) => produto.arquivado).length;
+  const totalAtivos = (produtosQuery.data ?? []).length - totalArquivados;
+
   function handleArquivar(produto: Produto) {
     atualizarProduto.mutate({ id: produto.id, input: { arquivado: !produto.arquivado } });
   }
@@ -65,6 +69,14 @@ export function ProdutosPage() {
           </Button>
         }
       />
+
+      {produtosQuery.isSuccess && (
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6 lg:max-w-2xl">
+          <CardMetrica label="Produtos" valor={String(totalAtivos)} />
+          <CardMetrica label="Arquivados" valor={String(totalArquivados)} />
+          <CardMetrica label="Amostras" valor={amostrasQuery.isSuccess ? String(amostrasQuery.data.length) : "–"} />
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
         <ProdutoFiltros categorias={categoriasQuery.data ?? []} filtros={filtros} onChange={setFiltros} />

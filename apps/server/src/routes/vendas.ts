@@ -3,7 +3,7 @@ import { Router } from "express";
 import multer from "multer";
 import { asyncHandler } from "../lib/async-handler.js";
 import { produtoRepository, vendaRepository } from "../repositories/index.js";
-import { analisarVendasTiktok, importarVendasTiktok } from "../services/importar-vendas-tiktok.js";
+import { analisarVendasSemSalvar, analisarVendasTiktok, importarVendasTiktok } from "../services/importar-vendas-tiktok.js";
 import { resumirVendas } from "../services/resumo-vendas.js";
 
 export const vendasRouter = Router();
@@ -40,7 +40,16 @@ vendasRouter.get(
         ? todasVendas.filter((v) => v.data >= inicio && v.data < fim)
         : todasVendas;
 
-    res.json(resumirVendas(vendas, produtosPorId));
+    res.json(resumirVendas(vendas, (id) => produtosPorId.get(id)?.nome));
+  }),
+);
+
+vendasRouter.post(
+  "/analise-avulsa",
+  upload.single("arquivo"),
+  asyncHandler(async (req, res) => {
+    if (!req.file) return void res.status(400).json({ erro: "Envie o arquivo no campo 'arquivo'." });
+    res.json(analisarVendasSemSalvar(req.file.buffer));
   }),
 );
 

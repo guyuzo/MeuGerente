@@ -1,7 +1,13 @@
-import type { Produto, ResumoVendas, Venda, VendaStatusPedido } from "@meugerente/shared";
+import type { ResumoVendas, Venda, VendaStatusPedido } from "@meugerente/shared";
 
-/** Agrega as vendas importadas/sincronizadas em cartões de KPI + ranking de produto por GMV. */
-export function resumirVendas(vendas: Venda[], produtosPorId: Map<string, Produto>): ResumoVendas {
+export type VendaResumivel = Pick<Venda, "produtoId" | "statusPedido" | "pedidos" | "itens" | "gmv" | "comissao"> &
+  Partial<Pick<Venda, "comissaoConfirmada">>;
+
+/**
+ * Agrega vendas em cartões de KPI + ranking de produto por GMV. Recebe só os campos que soma, então
+ * serve tanto pras vendas do banco quanto pras da análise avulsa (que nunca viram linha no banco).
+ */
+export function resumirVendas(vendas: VendaResumivel[], nomeDoProduto: (produtoId: string) => string | undefined): ResumoVendas {
   const porProduto = new Map<string, { gmv: number; pedidos: number }>();
   const porStatus: Partial<Record<VendaStatusPedido, number>> = {};
 
@@ -28,7 +34,7 @@ export function resumirVendas(vendas: Venda[], produtosPorId: Map<string, Produt
   const topProdutos = [...porProduto.entries()]
     .map(([produtoId, valores]) => ({
       produtoId,
-      nome: produtosPorId.get(produtoId)?.nome ?? "Produto removido",
+      nome: nomeDoProduto(produtoId) ?? "Produto removido",
       ...valores,
     }))
     .sort((a, b) => b.gmv - a.gmv)

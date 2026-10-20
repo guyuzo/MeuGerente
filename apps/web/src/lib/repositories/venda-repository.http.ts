@@ -1,4 +1,5 @@
 import type {
+  AnaliseAvulsaVendas,
   AnaliseImportacaoVendas,
   ProdutoOverrideImportacao,
   ResumoImportacaoVendas,
@@ -47,6 +48,12 @@ export class VendaRepositoryHttp implements VendaRepository {
     const formData = new FormData();
     formData.append("arquivo", arquivo);
     return apiClient.postForm("/api/vendas/importar/analisar", formData);
+  }
+
+  analisarSemSalvar(arquivo: File): Promise<AnaliseAvulsaVendas> {
+    const formData = new FormData();
+    formData.append("arquivo", arquivo);
+    return apiClient.postForm("/api/vendas/analise-avulsa", formData);
   }
 
   importarPlanilha(arquivo: File, overrides?: Record<string, ProdutoOverrideImportacao>): Promise<ResumoImportacaoVendas> {

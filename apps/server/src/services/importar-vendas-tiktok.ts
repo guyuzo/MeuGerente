@@ -1,13 +1,16 @@
 import type {
+  AnaliseAvulsaVendas,
   AnaliseImportacaoVendas,
   Produto,
   ProdutoOverrideImportacao,
   ResumoImportacaoVendas,
+  VendaCreateInput,
   VendaOrigem,
   VendaStatusPedido,
 } from "@meugerente/shared";
 import * as XLSX from "xlsx";
 import { produtoRepository, vendaRepository } from "../repositories/index.js";
+import { resumirVendas } from "./resumo-vendas.js";
 
 type LinhaPlanilha = Record<string, string>;
 
@@ -90,6 +93,30 @@ const ORIGEM_MAP: Record<string, VendaOrigem> = {
 
 function mapearOrigem(valor: string): VendaOrigem {
   return ORIGEM_MAP[valor.trim().toLowerCase()] ?? "outro";
+}
+
+/** Uma linha da planilha vira uma venda. Mesma regra pra importação e pra análise avulsa, então os números das duas batem. */
+function linhaParaVenda(linha: LinhaPlanilha, produtoId: string): VendaCreateInput {
+  const idSku = linha["ID do SKU"] || "0";
+  const statusPedido = mapearStatus(linha["Status de liquidação do pedido"] ?? "");
+
+  return {
+    tiktokOrderId: `${linha["ID do pedido"]}-${idSku}`,
+    produtoId,
+    data: paraDataISO(linha["Data do pedido"]) ?? new Date().toISOString(),
+    origem: mapearOrigem(linha["Tipo de conteúdo"] ?? ""),
+    statusPedido,
+    pedidos: 1,
+    itens: Math.trunc(paraNumero(linha["Itens vendidos"])),
+    gmv: paraNumero(linha["GMV"]),
+    comissao:
+      paraNumero(linha["Valor total final recebido"]) ||
+      paraNumero(linha["Comissão padrão"]) ||
+      paraNumero(linha["Comissão padrão estimada"]),
+    comissaoConfirmada: statusPedido === "concluido",
+    fonte: "importacao",
+    sincronizadoEm: new Date().toISOString(),
+  };
 }
 
 function emLotes<T>(itens: T[], tamanho: number): T[][] {
@@ -181,6 +208,29 @@ export async function analisarVendasTiktok(buffer: Buffer): Promise<AnaliseImpor
 }
 
 /**
+ * Análise avulsa: o resumo da planilha sem tocar no banco (nem leitura). O produto é identificado
+ * pelo nome cru da planilha, já que não existe produto cadastrado pra apontar.
+ */
+export function analisarVendasSemSalvar(buffer: Buffer): AnaliseAvulsaVendas {
+  const { linhas, linhasIgnoradas } = linhasValidas(buffer);
+  // Mesmo pedido+SKU repetido na planilha conta uma vez, como o upsert da importação faria.
+  const porPedido = new Map<string, VendaCreateInput>();
+  for (const linha of linhas) {
+    const venda = linhaParaVenda(linha, linha["Nome do produto"]);
+    porPedido.set(venda.tiktokOrderId, venda);
+  }
+  const vendas = [...porPedido.values()];
+
+  const datas = vendas.map((v) => v.data).sort();
+  return {
+    ...resumirVendas(vendas, (nome) => nome),
+    linhasIgnoradas,
+    inicio: datas[0],
+    fim: datas[datas.length - 1],
+  };
+}
+
+/**
  * Passo 2: importa de fato. `overrides` (chave = nome exato da planilha) vem do popup de revisão —
  * nome/categoria escolhidos pelo usuário pros produtos novos. O nome CRU da planilha sempre vira
  * `nomeImportado`, então reimportar depois casa por ele mesmo se o usuário tiver renomeado o produto.
@@ -226,27 +276,8 @@ export async function importarVendasTiktok(
         const produto = resolvidos.get(linha["Nome do produto"]);
         if (!produto) return;
 
-        const idSku = linha["ID do SKU"] || "0";
-        const statusPedido = mapearStatus(linha["Status de liquidação do pedido"] ?? "");
-        const tiktokOrderId = `${linha["ID do pedido"]}-${idSku}`;
-
-        await vendaRepository.upsertPorTiktokOrderId(tiktokOrderId, {
-          tiktokOrderId,
-          produtoId: produto.id,
-          data: paraDataISO(linha["Data do pedido"]) ?? new Date().toISOString(),
-          origem: mapearOrigem(linha["Tipo de conteúdo"] ?? ""),
-          statusPedido,
-          pedidos: 1,
-          itens: Math.trunc(paraNumero(linha["Itens vendidos"])),
-          gmv: paraNumero(linha["GMV"]),
-          comissao:
-            paraNumero(linha["Valor total final recebido"]) ||
-            paraNumero(linha["Comissão padrão"]) ||
-            paraNumero(linha["Comissão padrão estimada"]),
-          comissaoConfirmada: statusPedido === "concluido",
-          fonte: "importacao",
-          sincronizadoEm: new Date().toISOString(),
-        });
+        const venda = linhaParaVenda(linha, produto.id);
+        await vendaRepository.upsertPorTiktokOrderId(venda.tiktokOrderId, venda);
         linhasProcessadas++;
       }),
     );
