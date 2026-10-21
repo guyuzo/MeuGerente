@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { asyncHandler } from "../lib/async-handler.js";
-import { metaRepository } from "../repositories/index.js";
+import { repositorios } from "../repositories/index.js";
 
 export const metasRouter = Router();
 
@@ -16,7 +16,7 @@ metasRouter.get(
   "/:mes",
   asyncHandler(async (req, res) => {
     if (!MES_VALIDO.test(req.params.mes)) return void res.status(400).json({ erro: "Mês inválido — use AAAA-MM." });
-    res.json((await metaRepository.buscarPorMes(req.params.mes)) ?? null);
+    res.json((await repositorios(res).metaRepository.buscarPorMes(req.params.mes)) ?? null);
   }),
 );
 
@@ -24,7 +24,7 @@ metasRouter.post(
   "/:mes",
   asyncHandler(async (req, res) => {
     if (!MES_VALIDO.test(req.params.mes)) return void res.status(400).json({ erro: "Mês inválido — use AAAA-MM." });
-    const meta = await metaRepository.salvar(req.params.mes, {
+    const meta = await repositorios(res).metaRepository.salvar(req.params.mes, {
       videos: Math.trunc(numeroNaoNegativo(req.body.videos)),
       faturamento: numeroNaoNegativo(req.body.faturamento),
       lives: Math.trunc(numeroNaoNegativo(req.body.lives)),

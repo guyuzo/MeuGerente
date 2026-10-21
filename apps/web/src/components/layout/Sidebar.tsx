@@ -47,13 +47,19 @@ export function Sidebar({ onNavegar }: { onNavegar?: () => void }) {
 
       <div className="mt-4 mb-4 px-3 space-y-1">
         <ThemeToggle />
-        <button
-          type="button"
-          className="flex items-center gap-3 h-11 px-3 w-full rounded-md text-body-strong font-medium text-neutral-600 hover:bg-neutral-150 hover:text-neutral-900"
+        <NavLink
+          to="/conta"
+          onClick={() => onNavegar?.()}
+          className={({ isActive }) =>
+            cn(
+              "flex items-center gap-3 h-11 px-3 w-full rounded-md text-body-strong font-medium",
+              isActive ? "bg-purple-50 text-neutral-900" : "text-neutral-600 hover:bg-neutral-150 hover:text-neutral-900",
+            )
+          }
         >
           <Settings size={18} />
           Configurações
-        </button>
+        </NavLink>
         <button
           type="button"
           onClick={() => sair.mutate()}

@@ -4,6 +4,7 @@ import express, { type ErrorRequestHandler } from "express";
 import { geminiDisponivel } from "./ia/gemini-client.js";
 import { authRouter } from "./routes/auth.js";
 import { exigirLogin } from "./lib/auth.js";
+import { NaoEncontradoError } from "./repositories/dono.js";
 import { amostraColunasRouter } from "./routes/amostra-colunas.js";
 import { amostrasRouter } from "./routes/amostras.js";
 import { categoriasRouter } from "./routes/categorias.js";
@@ -48,6 +49,8 @@ app.use("/api/metas", metasRouter);
 app.use("/api/ia", iaRouter);
 
 const tratarErro: ErrorRequestHandler = (err, _req, res, _next) => {
+  // Registro inexistente ou de outra conta: 404, sem diferenciar os dois casos.
+  if (err instanceof NaoEncontradoError) return void res.status(404).json({ erro: "nao_encontrado", mensagem: err.message });
   console.error(err);
   res.status(500).json({ erro: "erro_interno", mensagem: err instanceof Error ? err.message : "Erro desconhecido" });
 };

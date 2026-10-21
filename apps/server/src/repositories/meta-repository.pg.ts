@@ -1,5 +1,5 @@
 import type { Meta, MetaInput, MetaRepository } from "@meugerente/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { metas } from "../db/schema.js";
 
@@ -18,17 +18,26 @@ function paraMeta(linha: LinhaMeta): Meta {
   };
 }
 
+/** Escopado por usuário: cada conta tem a própria meta de cada mês (PLANO-MULTIUSUARIO.md). */
 export class MetaRepositoryPg implements MetaRepository {
+  constructor(private readonly usuarioId: string) {}
+
   async buscarPorMes(mes: string): Promise<Meta | undefined> {
-    const [linha] = await db.select().from(metas).where(eq(metas.mes, mes));
+    const [linha] = await db
+      .select()
+      .from(metas)
+      .where(and(eq(metas.mes, mes), eq(metas.usuarioId, this.usuarioId)));
     return linha ? paraMeta(linha) : undefined;
   }
 
   async salvar(mes: string, input: MetaInput): Promise<Meta> {
     const [linha] = await db
       .insert(metas)
-      .values({ mes, ...input })
-      .onConflictDoUpdate({ target: metas.mes, set: { ...input, atualizadoEm: new Date().toISOString() } })
+      .values({ ...input, mes, usuarioId: this.usuarioId })
+      .onConflictDoUpdate({
+        target: [metas.usuarioId, metas.mes],
+        set: { ...input, atualizadoEm: new Date().toISOString() },
+      })
       .returning();
     return paraMeta(linha);
   }

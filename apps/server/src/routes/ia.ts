@@ -8,7 +8,8 @@ import {
   SYSTEM_INSTRUCTION_ROTEIRO,
 } from "../ia/prompts.js";
 import { asyncHandler } from "../lib/async-handler.js";
-import { produtoRepository } from "../repositories/index.js";
+import { contarTentativa } from "../lib/limites.js";
+import { repositorios } from "../repositories/index.js";
 
 export const iaRouter = Router();
 
@@ -23,11 +24,33 @@ iaRouter.use((_req, res, next) => {
   next();
 });
 
+/**
+ * A chave da Gemini é uma só e paga por todos os usuários: cada conta tem um teto de gerações a
+ * cada 24h (IA_LIMITE_DIARIO, padrão 50). Conta a tentativa antes de chamar a IA, então pedido que
+ * falhou também gasta — evita que um erro em loop vire chamada ilimitada.
+ */
+const LIMITE_DIARIO_IA = Number(process.env.IA_LIMITE_DIARIO) || 50;
+const UM_DIA = 24 * 60 * 60 * 1000;
+
+iaRouter.use((_req, res, next) => {
+  contarTentativa(`ia:${res.locals.usuarioId}`, UM_DIA)
+    .then((usadas) => {
+      if (usadas > LIMITE_DIARIO_IA) {
+        return void res.status(429).json({
+          erro: "limite_ia",
+          mensagem: `Você usou as ${LIMITE_DIARIO_IA} gerações de IA das últimas 24 horas. Tente de novo amanhã.`,
+        });
+      }
+      next();
+    })
+    .catch(next);
+});
+
 iaRouter.post(
   "/roteiro",
   asyncHandler(async (req, res) => {
     const { produtoId, publico, formato, duracaoSegundos } = req.body;
-    const produto = await produtoRepository.buscarPorId(produtoId);
+    const produto = await repositorios(res).produtoRepository.buscarPorId(produtoId);
     if (!produto) return void res.status(404).json({ erro: "Produto não encontrado" });
 
     const prompt = montarPromptRoteiro({ produto, publico, formato, duracaoSegundos });
@@ -45,7 +68,7 @@ iaRouter.post(
   "/ganchos",
   asyncHandler(async (req, res) => {
     const { produtoId, publico, corpo } = req.body;
-    const produto = await produtoRepository.buscarPorId(produtoId);
+    const produto = await repositorios(res).produtoRepository.buscarPorId(produtoId);
     if (!produto) return void res.status(404).json({ erro: "Produto não encontrado" });
 
     const prompt = montarPromptGanchos({ produto, publico, corpo });

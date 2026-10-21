@@ -2,7 +2,7 @@ import type { ProdutoOverrideImportacao } from "@meugerente/shared";
 import { Router } from "express";
 import multer from "multer";
 import { asyncHandler } from "../lib/async-handler.js";
-import { produtoRepository, vendaRepository } from "../repositories/index.js";
+import { repositorios } from "../repositories/index.js";
 import { analisarVendasSemSalvar, analisarVendasTiktok, importarVendasTiktok } from "../services/importar-vendas-tiktok.js";
 import { resumirVendas } from "../services/resumo-vendas.js";
 
@@ -21,6 +21,7 @@ const upload = multer({
 vendasRouter.get(
   "/",
   asyncHandler(async (req, res) => {
+    const { vendaRepository } = repositorios(res);
     const { produtoId } = req.query;
     if (typeof produtoId === "string") {
       return void res.json(await vendaRepository.listarPorProduto(produtoId));
@@ -33,6 +34,7 @@ vendasRouter.get(
   "/resumo",
   asyncHandler(async (req, res) => {
     const { inicio, fim } = req.query;
+    const { vendaRepository, produtoRepository } = repositorios(res);
     const [todasVendas, produtos] = await Promise.all([vendaRepository.listar(), produtoRepository.listar()]);
     const produtosPorId = new Map(produtos.map((p) => [p.id, p]));
 
@@ -59,7 +61,7 @@ vendasRouter.post(
   upload.single("arquivo"),
   asyncHandler(async (req, res) => {
     if (!req.file) return void res.status(400).json({ erro: "Envie o arquivo no campo 'arquivo'." });
-    res.json(await analisarVendasTiktok(req.file.buffer));
+    res.json(await analisarVendasTiktok(repositorios(res), req.file.buffer));
   }),
 );
 
@@ -78,7 +80,7 @@ vendasRouter.post(
       }
     }
 
-    const resumo = await importarVendasTiktok(req.file.buffer, overrides);
+    const resumo = await importarVendasTiktok(repositorios(res), req.file.buffer, overrides);
     res.status(201).json(resumo);
   }),
 );

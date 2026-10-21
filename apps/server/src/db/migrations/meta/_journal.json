@@ -85,6 +85,20 @@
       "when": 1790362231646,
       "tag": "0011_big_whirlwind",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792527107573,
+      "tag": "0012_productive_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792527196157,
+      "tag": "0013_sticky_wolverine",
+      "breakpoints": true
     }
   ]
 }

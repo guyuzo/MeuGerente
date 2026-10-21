@@ -1,6 +1,7 @@
 import "dotenv/config";
+import { eq } from "drizzle-orm";
 import { db } from "./client.js";
-import { amostras, categorias, conteudos, produtos } from "./schema.js";
+import { amostras, categorias, conteudos, produtos, usuarios } from "./schema.js";
 
 function diasOffset(n: number): string {
   const data = new Date();
@@ -8,22 +9,34 @@ function diasOffset(n: number): string {
   return data.toISOString();
 }
 
-/** Popula um catálogo de exemplo (mesmo cenário da Fase 1) para haver algo pra ver assim que o banco conecta. */
+/**
+ * Popula um catálogo de exemplo (mesmo cenário da Fase 1) na conta informada.
+ * Uso: npm run db:seed --workspace=apps/server -- email@exemplo.com
+ */
 async function seed() {
-  console.log("Semeando banco...");
+  const email = process.argv[2]?.trim().toLowerCase();
+  if (!email) throw new Error("Uso: npm run db:seed --workspace=apps/server -- email@exemplo.com");
+  const [usuario] = await db.select({ id: usuarios.id }).from(usuarios).where(eq(usuarios.email, email));
+  if (!usuario) throw new Error(`Usuário ${email} não existe — crie com npm run user:create primeiro.`);
+  const comDono = <T extends { usuarioId: string }>(linhas: Omit<T, "usuarioId">[]): T[] =>
+    linhas.map((linha) => ({ ...linha, usuarioId: usuario.id }) as T);
+
+  console.log(`Semeando a conta ${email}...`);
 
   const [catBeleza, catCasa, catSaude] = await db
     .insert(categorias)
-    .values([
-      { nome: "Beleza", cor: "pink", emoji: "💄" },
-      { nome: "Casa", cor: "amber", emoji: "🏠" },
-      { nome: "Saúde", cor: "teal", emoji: "💊" },
-    ])
+    .values(
+      comDono<typeof categorias.$inferInsert>([
+        { nome: "Beleza", cor: "pink", emoji: "💄" },
+        { nome: "Casa", cor: "amber", emoji: "🏠" },
+        { nome: "Saúde", cor: "teal", emoji: "💊" },
+      ]),
+    )
     .returning();
 
   const [escova, organizador, , luminaria, pinceis] = await db
     .insert(produtos)
-    .values([
+    .values(comDono<typeof produtos.$inferInsert>([
       {
         nome: "Escova secadora 3 em 1",
         emoji: "💇",
@@ -78,12 +91,12 @@ async function seed() {
         status: "pausado",
         notaPotencial: 38,
       },
-    ])
+    ]))
     .returning();
 
   const [amostraEscova, amostraLuminaria] = await db
     .insert(amostras)
-    .values([
+    .values(comDono<typeof amostras.$inferInsert>([
       {
         produtoId: escova.id,
         status: "para_publicar",
@@ -118,10 +131,10 @@ async function seed() {
         dataSolicitacao: diasOffset(-15),
         publicadoEm: diasOffset(-10),
       },
-    ])
+    ]))
     .returning();
 
-  await db.insert(conteudos).values([
+  await db.insert(conteudos).values(comDono<typeof conteudos.$inferInsert>([
     {
       produtoId: escova.id,
       amostraId: amostraEscova.id,
@@ -146,7 +159,7 @@ async function seed() {
       dataPrevista: diasOffset(-5),
       dataPublicacao: diasOffset(-5),
     },
-  ]);
+  ]));
 
   console.log("Banco semeado.");
   process.exit(0);

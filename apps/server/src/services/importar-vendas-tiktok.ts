@@ -9,7 +9,7 @@ import type {
   VendaStatusPedido,
 } from "@meugerente/shared";
 import * as XLSX from "xlsx";
-import { produtoRepository, vendaRepository } from "../repositories/index.js";
+import type { Repositorios } from "../repositories/index.js";
 import { resumirVendas } from "./resumo-vendas.js";
 
 type LinhaPlanilha = Record<string, string>;
@@ -163,6 +163,7 @@ function agruparProdutosDaPlanilha(linhas: LinhaPlanilha[]): Map<string, Produto
 
 /** Casa cada produto da planilha com um já cadastrado — por `tiktokProductId`, depois pelo `nomeImportado` exato, depois por nome normalizado (planilhas importadas antes desse recurso existir). */
 async function resolverProdutosExistentes(
+  { produtoRepository }: Repositorios,
   grupos: Map<string, ProdutoDaLinha>,
 ): Promise<{ resolvidos: Map<string, Produto>; novos: ProdutoDaLinha[] }> {
   const produtosExistentes = await produtoRepository.listar();
@@ -186,10 +187,10 @@ async function resolverProdutosExistentes(
 }
 
 /** Passo 1: só analisa a planilha e devolve os produtos que ainda não existem, pro usuário revisar nome/categoria antes de criar. */
-export async function analisarVendasTiktok(buffer: Buffer): Promise<AnaliseImportacaoVendas> {
+export async function analisarVendasTiktok(repos: Repositorios, buffer: Buffer): Promise<AnaliseImportacaoVendas> {
   const { linhas } = linhasValidas(buffer);
   const grupos = agruparProdutosDaPlanilha(linhas);
-  const { resolvidos, novos } = await resolverProdutosExistentes(grupos);
+  const { resolvidos, novos } = await resolverProdutosExistentes(repos, grupos);
 
   return {
     produtosNovos: novos
@@ -236,12 +237,14 @@ export function analisarVendasSemSalvar(buffer: Buffer): AnaliseAvulsaVendas {
  * `nomeImportado`, então reimportar depois casa por ele mesmo se o usuário tiver renomeado o produto.
  */
 export async function importarVendasTiktok(
+  repos: Repositorios,
   buffer: Buffer,
   overrides: Record<string, ProdutoOverrideImportacao> = {},
 ): Promise<ResumoImportacaoVendas> {
+  const { produtoRepository, vendaRepository } = repos;
   const { linhas, linhasIgnoradas } = linhasValidas(buffer);
   const grupos = agruparProdutosDaPlanilha(linhas);
-  const { resolvidos, novos } = await resolverProdutosExistentes(grupos);
+  const { resolvidos, novos } = await resolverProdutosExistentes(repos, grupos);
 
   let produtosCriados = 0;
   for (const grupo of novos) {

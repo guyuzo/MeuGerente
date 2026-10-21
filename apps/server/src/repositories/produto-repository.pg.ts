@@ -1,7 +1,8 @@
 import type { Produto, ProdutoCreateInput, ProdutoRepository, ProdutoStatus, ProdutoUpdateInput } from "@meugerente/shared";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { produtos } from "../db/schema.js";
+import { categorias, produtos } from "../db/schema.js";
+import { garantirReferencias, NaoEncontradoError, semCamposProtegidos } from "./dono.js";
 
 type LinhaProduto = typeof produtos.$inferSelect;
 
@@ -30,29 +31,43 @@ function paraProduto(linha: LinhaProduto): Produto {
   };
 }
 
+/** Escopado por usuário: toda leitura e escrita filtra por `usuarioId` (PLANO-MULTIUSUARIO.md). */
 export class ProdutoRepositoryPg implements ProdutoRepository {
+  constructor(private readonly usuarioId: string) {}
+
+  private doUsuario(id: string) {
+    return and(eq(produtos.id, id), eq(produtos.usuarioId, this.usuarioId));
+  }
+
   async listar(): Promise<Produto[]> {
-    const linhas = await db.select().from(produtos);
+    const linhas = await db.select().from(produtos).where(eq(produtos.usuarioId, this.usuarioId));
     return linhas.map(paraProduto);
   }
 
   async buscarPorId(id: string): Promise<Produto | undefined> {
-    const [linha] = await db.select().from(produtos).where(eq(produtos.id, id));
+    const [linha] = await db.select().from(produtos).where(this.doUsuario(id));
     return linha ? paraProduto(linha) : undefined;
   }
 
   async criar(input: ProdutoCreateInput): Promise<Produto> {
-    const [linha] = await db.insert(produtos).values(input).returning();
+    const dados = semCamposProtegidos(input);
+    await garantirReferencias(this.usuarioId, dados, [["categoriaId", categorias, "Categoria"]]);
+    const [linha] = await db
+      .insert(produtos)
+      .values({ ...dados, usuarioId: this.usuarioId })
+      .returning();
     return paraProduto(linha);
   }
 
   async atualizar(id: string, input: ProdutoUpdateInput): Promise<Produto> {
+    const dados = semCamposProtegidos(input);
+    await garantirReferencias(this.usuarioId, dados, [["categoriaId", categorias, "Categoria"]]);
     const [linha] = await db
       .update(produtos)
-      .set({ ...input, atualizadoEm: new Date().toISOString() })
-      .where(eq(produtos.id, id))
+      .set({ ...dados, atualizadoEm: new Date().toISOString() })
+      .where(this.doUsuario(id))
       .returning();
-    if (!linha) throw new Error(`Produto ${id} não encontrado`);
+    if (!linha) throw new NaoEncontradoError("Produto não encontrado");
     return paraProduto(linha);
   }
 
@@ -60,9 +75,9 @@ export class ProdutoRepositoryPg implements ProdutoRepository {
     const [linha] = await db
       .update(produtos)
       .set({ status, atualizadoEm: new Date().toISOString() })
-      .where(eq(produtos.id, id))
+      .where(this.doUsuario(id))
       .returning();
-    if (!linha) throw new Error(`Produto ${id} não encontrado`);
+    if (!linha) throw new NaoEncontradoError("Produto não encontrado");
     return paraProduto(linha);
   }
 }

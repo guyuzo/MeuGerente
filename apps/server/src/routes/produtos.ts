@@ -1,20 +1,20 @@
 import { Router } from "express";
 import { asyncHandler } from "../lib/async-handler.js";
-import { produtoRepository } from "../repositories/index.js";
+import { repositorios } from "../repositories/index.js";
 
 export const produtosRouter = Router();
 
 produtosRouter.get(
   "/",
   asyncHandler(async (_req, res) => {
-    res.json(await produtoRepository.listar());
+    res.json(await repositorios(res).produtoRepository.listar());
   }),
 );
 
 produtosRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const produto = await produtoRepository.buscarPorId(req.params.id);
+    const produto = await repositorios(res).produtoRepository.buscarPorId(req.params.id);
     if (!produto) return void res.status(404).json({ erro: "Produto não encontrado" });
     res.json(produto);
   }),
@@ -23,20 +23,20 @@ produtosRouter.get(
 produtosRouter.post(
   "/",
   asyncHandler(async (req, res) => {
-    res.status(201).json(await produtoRepository.criar(req.body));
+    res.status(201).json(await repositorios(res).produtoRepository.criar(req.body));
   }),
 );
 
 produtosRouter.patch(
   "/:id",
   asyncHandler(async (req, res) => {
-    res.json(await produtoRepository.atualizar(req.params.id, req.body));
+    res.json(await repositorios(res).produtoRepository.atualizar(req.params.id, req.body));
   }),
 );
 
 produtosRouter.patch(
   "/:id/status",
   asyncHandler(async (req, res) => {
-    res.json(await produtoRepository.mudarStatus(req.params.id, req.body.status));
+    res.json(await repositorios(res).produtoRepository.mudarStatus(req.params.id, req.body.status));
   }),
 );

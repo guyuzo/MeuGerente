@@ -1,5 +1,8 @@
-import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { eq } from "drizzle-orm";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
+import { db } from "../db/client.js";
+import { usuarios } from "../db/schema.js";
 
 const NOME_COOKIE = "meugerente_sessao";
 const DURACAO_SESSAO_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,26 +35,40 @@ export async function verificarSenha(senha: string, hashGuardado: string): Promi
   return esperado.length === calculado.length && timingSafeEqual(esperado, calculado);
 }
 
+/** Token aleatório de uso único (link de redefinir senha). No banco vai só o hash — vazamento da tabela não dá acesso. */
+export function gerarTokenAleatorio(): { token: string; hash: string } {
+  const token = randomBytes(32).toString("base64url");
+  return { token, hash: hashToken(token) };
+}
+
+export function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 function assinar(corpo: string): string {
   return createHmac("sha256", segredo()).update(corpo).digest("base64url");
 }
 
-/** Sessão sem estado: "<usuarioId>.<expira em ms>.<assinatura HMAC>" — trocar SESSION_SECRET derruba todas as sessões. */
-function criarToken(usuarioId: string): string {
-  const corpo = `${usuarioId}.${Date.now() + DURACAO_SESSAO_MS}`;
+/**
+ * Sessão: "<usuarioId>.<versaoSessao>.<expira em ms>.<assinatura HMAC>". A versão vem de
+ * `usuarios.versao_sessao` — trocar a senha incrementa ela e derruba toda sessão aberta.
+ * Trocar SESSION_SECRET também derruba todas.
+ */
+function criarToken(usuarioId: string, versaoSessao: number): string {
+  const corpo = `${usuarioId}.${versaoSessao}.${Date.now() + DURACAO_SESSAO_MS}`;
   return `${corpo}.${assinar(corpo)}`;
 }
 
-function lerToken(token: string): { usuarioId: string } | undefined {
+function lerToken(token: string): { usuarioId: string; versaoSessao: number } | undefined {
   const partes = token.split(".");
-  if (partes.length !== 3) return undefined;
-  const [usuarioId, expira, assinatura] = partes;
-  const esperada = assinar(`${usuarioId}.${expira}`);
+  if (partes.length !== 4) return undefined;
+  const [usuarioId, versao, expira, assinatura] = partes;
+  const esperada = assinar(`${usuarioId}.${versao}.${expira}`);
   const a = Buffer.from(assinatura);
   const b = Buffer.from(esperada);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return undefined;
   if (Number(expira) < Date.now()) return undefined;
-  return { usuarioId };
+  return { usuarioId, versaoSessao: Number(versao) };
 }
 
 function lerCookie(req: Request): string | undefined {
@@ -62,13 +79,22 @@ function lerCookie(req: Request): string | undefined {
   return undefined;
 }
 
-export function usuarioDaRequisicao(req: Request): { usuarioId: string } | undefined {
+/** Usuário da sessão, conferido no banco: conta apagada ou senha trocada depois do login invalidam o cookie. */
+export async function usuarioDaRequisicao(req: Request): Promise<{ id: string; email: string } | undefined> {
   const token = lerCookie(req);
-  return token ? lerToken(token) : undefined;
+  const sessao = token ? lerToken(token) : undefined;
+  if (!sessao) return undefined;
+
+  const [usuario] = await db
+    .select({ id: usuarios.id, email: usuarios.email, versaoSessao: usuarios.versaoSessao })
+    .from(usuarios)
+    .where(eq(usuarios.id, sessao.usuarioId));
+  if (!usuario || usuario.versaoSessao !== sessao.versaoSessao) return undefined;
+  return { id: usuario.id, email: usuario.email };
 }
 
-export function iniciarSessao(res: Response, usuarioId: string): void {
-  res.cookie(NOME_COOKIE, criarToken(usuarioId), {
+export function iniciarSessao(res: Response, usuario: { id: string; versaoSessao: number }): void {
+  res.cookie(NOME_COOKIE, criarToken(usuario.id, usuario.versaoSessao), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -81,33 +107,13 @@ export function encerrarSessao(res: Response): void {
   res.clearCookie(NOME_COOKIE, { path: "/" });
 }
 
-/** Barra toda rota /api que não seja de login com 401. */
+/** Barra toda rota /api que não seja de login com 401 e deixa o dono da sessão em `res.locals.usuarioId`. */
 export const exigirLogin: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
-  if (!usuarioDaRequisicao(req)) return void res.status(401).json({ erro: "nao_autenticado", mensagem: "Faça login para continuar." });
-  next();
+  usuarioDaRequisicao(req)
+    .then((usuario) => {
+      if (!usuario) return void res.status(401).json({ erro: "nao_autenticado", mensagem: "Faça login para continuar." });
+      res.locals.usuarioId = usuario.id;
+      next();
+    })
+    .catch(next);
 };
-
-/** Freio simples contra tentativa de senha em sequência: 5 falhas por IP a cada 15 minutos. */
-const falhas = new Map<string, { quantidade: number; desde: number }>();
-const JANELA_MS = 15 * 60 * 1000;
-const MAX_FALHAS = 5;
-
-export function loginBloqueado(ip: string): boolean {
-  const registro = falhas.get(ip);
-  if (!registro) return false;
-  if (Date.now() - registro.desde > JANELA_MS) {
-    falhas.delete(ip);
-    return false;
-  }
-  return registro.quantidade >= MAX_FALHAS;
-}
-
-export function registrarFalhaDeLogin(ip: string): void {
-  const registro = falhas.get(ip);
-  if (!registro || Date.now() - registro.desde > JANELA_MS) falhas.set(ip, { quantidade: 1, desde: Date.now() });
-  else registro.quantidade++;
-}
-
-export function limparFalhasDeLogin(ip: string): void {
-  falhas.delete(ip);
-}

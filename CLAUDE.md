@@ -52,6 +52,15 @@ Nenhum componente acessa dado diretamente, dos dois lados do monorepo:
 
 Trocar de banco de novo, ou dar cache local no front, é trocar só a implementação apontada em cada `lib/repositories/index.ts` — nenhuma tela muda. Essa é a regra do PRD seção 6.2 e não é opcional.
 
+## Multiusuário — isolamento por conta
+
+Desde `PLANO-MULTIUSUARIO.md`, cada afiliado tem a própria conta e só enxerga os próprios dados:
+
+- Toda tabela de dado tem `usuario_id` (inclusive as filhas). Tabela nova de dado nasce com `colunaDono()` do `schema.ts`.
+- No server não existe instância única de repositório: rota usa `repositorios(res)`, que monta os `*.pg.ts` presos ao `res.locals.usuarioId` gravado pelo `exigirLogin`. O dono vem **só** da sessão, nunca do corpo/URL.
+- Repositório novo: filtrar todo select/update/delete por `usuarioId`, gravar o dono no insert, passar o corpo por `semCamposProtegidos` e conferir toda referência a outro registro com `garantirReferencias` (id de outra conta = 404, igual a inexistente).
+- Freios (login, cadastro, esqueci a senha, IA por dia) ficam na tabela `limites_uso`, não em memória — na Vercel cada instância teria o próprio contador.
+
 ## Banco de dados
 
 Schema Drizzle em `apps/server/src/db/schema.ts` (uma tabela por entidade do PRD seção 7: produtos, amostras, conteudos, roteiros). Datas são `timestamp` em modo string, então nenhuma camada acima faz conversão de tipo na fronteira repositório ↔ banco.
@@ -127,8 +136,8 @@ npm run build --workspace=packages/shared     # ou --workspace=packages/shared -
 # apps/server/.env a partir de apps/server/.env.example (DATABASE_URL, GEMINI_API_KEY)
 npm run db:generate --workspace=apps/server   # gera migration a partir do schema
 npm run db:migrate --workspace=apps/server    # aplica no Postgres
-npm run db:seed --workspace=apps/server       # opcional, popula catálogo de exemplo
-npm run user:create --workspace=apps/server -- email@exemplo.com "senha"   # cria (ou troca a senha de) um usuário de login; SESSION_SECRET no .env assina o cookie
+npm run db:seed --workspace=apps/server -- email@exemplo.com   # opcional, popula catálogo de exemplo nessa conta
+npm run user:create --workspace=apps/server -- email@exemplo.com "senha"   # cria (ou troca a senha de) um usuário pelo terminal; o cadastro normal é pela tela /cadastro
 
 npm run dev:web       # Vite em http://localhost:5173
 npm run dev:server    # Express em http://localhost:3001

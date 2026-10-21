@@ -44,7 +44,7 @@ export const apiClient = {
   patch<T>(caminho: string, corpo: unknown): Promise<T> {
     return requisitar<T>(caminho, comJson("PATCH", corpo));
   },
-  delete<T>(caminho: string): Promise<T> {
-    return requisitar<T>(caminho, { method: "DELETE" });
+  delete<T>(caminho: string, corpo?: unknown): Promise<T> {
+    return requisitar<T>(caminho, corpo === undefined ? { method: "DELETE" } : comJson("DELETE", corpo));
   },
 };
